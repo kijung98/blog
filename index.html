@@ -901,7 +901,7 @@ body {
 .pp-list-table th{ background: var(--navy); color:white; padding:8px 10px; text-align:left; font-weight:700; }
 .pp-list-table td{ padding:8px 10px; border-bottom:1px solid var(--gray-200); vertical-align: top; }
 .pp-list-table tr:nth-child(even) td{ background: var(--gray-100); }
-.pp-list-table .col-no{ padding-left:2px; padding-right:2px; text-align:center; white-space:nowrap; font-size:9px; }
+.pp-list-table .col-no{ padding-left:2px; padding-right:2px; text-align:center; white-space:nowrap; font-size:13px; font-weight:800; }
 .pp-list-table .col-fin{ padding:0; }
 .pp-list-table .col-addr{ padding:10px 12px; }
 .pp-list-table .col-ins{ white-space:nowrap; padding-left:6px; padding-right:6px; }
@@ -911,7 +911,7 @@ body {
 .pp-fin-mini td{ padding:3px 5px; border-bottom:1px dotted var(--gray-200); border-left:1px solid var(--gray-200); white-space:nowrap; overflow:hidden; }
 .pp-fin-mini td:first-child{ border-left:none; }
 .pp-fin-mini tr:last-child td{ border-bottom:none; }
-.pp-fin-mini .fy{ color:var(--gray-400); font-weight:600; white-space:nowrap; }
+.pp-fin-mini .fy{ color:var(--gray-400); font-weight:600; white-space:nowrap; text-align:center; }
 .pp-fin-mini tr.hl-row td{ font-weight:700; }
 .pp-fin-mini tr.hl-row td:not(.fy){ background: linear-gradient(180deg, transparent 55%, #FFF176 55%); }
 /* 재무 헤더(연도/자본금/매출/순이익/영업이익) — 아래 데이터 표와 같은 colgroup으로 열을 맞춤 */
@@ -3859,6 +3859,7 @@ const FIELD_DEFS = [
   {key:'이노비즈인정일자',label:'이노비즈 인정일자'},
   {key:'메인비즈인정일자',label:'메인비즈 인정일자'},
   {key:'벤처인증여부',label:'벤처인증 여부'},
+  {key:'벤처인증발급일자',label:'벤처인증 발급일자'},
   {key:'특허등록건수',label:'특허등록 건수'},
   {key:'특허및인증',label:'특허 및 인증 (요약, 직접 매핑시 위 5개보다 우선)'},
 ];
@@ -4044,7 +4045,8 @@ function buildMapTable() {
     기업부설연구소인정일자:['기업부설연구소_인정일자','기업부설연구소인정일자','기업부설연구소'],
     이노비즈인정일자:['이노비즈_인정일자','이노비즈인정일자','이노비즈'],
     메인비즈인정일자:['메인비즈_인정일자','메인비즈인정일자','메인비즈'],
-    벤처인증여부:['벤처인증_여부','벤처인증여부','벤처인증','벤처기업'],
+    벤처인증여부:['벤처인증_여부','벤처인증여부'],
+    벤처인증발급일자:['벤처인증_발급일자','벤처인증발급일자','벤처인증_인정일자'],
     특허등록건수:['특허등록건수','특허등록','특허보유'],
     특허및인증:['특허및인증','특허·인증','보유인증','인증현황'],
   };
@@ -4150,7 +4152,9 @@ function doImport() {
       if (obj['이노비즈인정일자']) tags.push('이노비즈(' + obj['이노비즈인정일자'] + ')');
       if (obj['메인비즈인정일자']) tags.push('메인비즈(' + obj['메인비즈인정일자'] + ')');
       const vv = obj['벤처인증여부'].trim().toUpperCase();
-      if (vv && !['N','0','X','아니오','없음','미해당','해당없음'].includes(vv)) tags.push('벤처인증');
+      if (vv && !['N','0','X','아니오','없음','미해당','해당없음'].includes(vv)) {
+        tags.push(obj['벤처인증발급일자'] ? '벤처인증(' + obj['벤처인증발급일자'] + ')' : '벤처인증');
+      }
       const patentCnt = Number(String(obj['특허등록건수']).replace(/[^0-9.-]/g, ''));
       if (patentCnt > 0) tags.push('특허 ' + patentCnt + '건');
       obj['특허및인증'] = tags.join(', ');
@@ -5337,21 +5341,20 @@ function generatePrintView() {
           <tr class="hl-row"><td class="fy">${y0}</td><td>${fmtMoneyShort(c.자본금)}</td><td>${fmtMoneyShort(c.매출)}</td><td>${fmtMoneyShort(c.순이익)}</td><td>${fmtMoneyShort(c.영업이익)}</td></tr>
         </table>
       </td>
-      <td class="col-ins" style="text-align:center;">${c.단체보험가입여부||'-'}</td>
-      <td class="col-ins" style="text-align:center;">${c.법인명의가입여부||'-'}</td>
+      <td class="col-ins" style="text-align:center;line-height:1.6;">단체 ${c.단체보험가입여부==='Y' ? `<span class="hl-mark">Y</span>` : (c.단체보험가입여부||'-')}<br>법인 ${c.법인명의가입여부==='Y' ? `<span class="hl-mark">Y</span>` : (c.법인명의가입여부||'-')}</td>
       <td style="font-size:11px;">${certText(c)}</td>
     </tr>`;
     }).join('');
     document.getElementById('pp-content').innerHTML =
       '<table class="pp-list-table"><thead><tr>' +
       '<th class="col-no" style="width:3%;">NO</th><th style="width:10%;">기업명/대표</th>' +
-      '<th style="width:11%;">사업자/전화</th><th class="col-industry" style="width:9%;">업종</th>' +
-      '<th class="col-addr" style="width:14%;">주소</th><th style="width:5%;">인원</th>' +
-      '<th class="col-fin col-fin-head" style="width:31%;padding:0;"><table class="pp-fin-mini pp-fin-mini-head">' + FIN_COLGROUP +
+      '<th style="width:10%;">사업자/전화</th><th class="col-industry" style="width:9%;">업종</th>' +
+      '<th class="col-addr" style="width:14%;">주소</th><th style="width:5%;text-align:center;">인원</th>' +
+      '<th class="col-fin col-fin-head" style="width:25%;padding:0;"><table class="pp-fin-mini pp-fin-mini-head">' + FIN_COLGROUP +
         '<tr><td class="fy">연도</td><td>자본금</td><td>매출</td><td>순이익</td><td>영업이익<span style="font-weight:400;">(백만원)</span></td></tr>' +
         '</table></th>' +
-      '<th class="col-ins" style="width:4%;">단체</th><th class="col-ins" style="width:6%;">법인명의</th>' +
-      '<th style="width:7%;">특허·인증</th>' +
+      '<th class="col-ins" style="width:6%;">단체/법인</th>' +
+      '<th style="width:18%;">특허·인증</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
   } else {
     ppWrap.classList.remove('landscape');
@@ -5387,10 +5390,10 @@ function generatePrintView() {
         </table>
         <div class="pdc-row" style="margin-top:3px;"><div class="pdc-label">단체보험</div><div class="pdc-val">${c.단체보험가입여부||'-'} · 법인명의 ${c.법인명의가입여부||'-'}</div></div>
         <div class="pdc-row" style="align-items:flex-start;"><div class="pdc-label">특허·인증</div><div class="pdc-val pdc-cert-grid">
-          <div>${certRow('기업부설연구소', c.기업부설연구소_인정일자)}</div>
-          <div>${certRow('이노비즈', c.이노비즈_인정일자)}</div>
-          <div>${certRow('메인비즈', c.메인비즈_인정일자)}</div>
-          <div>${certRow('벤처인증', (c.벤처인증여부 && !['N','0','X','아니오','없음'].includes(String(c.벤처인증여부).trim().toUpperCase())) ? c.벤처인증여부 : '')}</div>
+          <div>${certRow('기업부설연구소', c.기업부설연구소인정일자)}</div>
+          <div>${certRow('이노비즈', c.이노비즈인정일자)}</div>
+          <div>${certRow('메인비즈', c.메인비즈인정일자)}</div>
+          <div>${certRow('벤처인증', (c.벤처인증여부 && !['N','0','X','아니오','없음'].includes(String(c.벤처인증여부).trim().toUpperCase())) ? (c.벤처인증발급일자 || c.벤처인증여부) : '')}</div>
           <div class="full">특허등록: ${patentN > 0 ? `<span class="hl-mark">${patentN}건</span>` : '0건'}</div>
         </div></div>
         <div class="pdc-memo">내용(방문메모): </div>

@@ -1,7 +1,7 @@
 // 방문영업 일지 시스템 — 서비스워커
 // 이 파일이 있어야 안드로이드(갤럭시탭 등)에서 "홈 화면에 추가/설치"가
 // 정식 앱처럼 동작하고, 인터넷이 안 될 때도 화면이 열립니다.
-const CACHE_NAME = 'gfc-visit-log-v12';
+const CACHE_NAME = 'gfc-visit-log-v15';
 const CORE_ASSETS = [
   './',
   './index.html',

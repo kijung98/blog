@@ -1351,10 +1351,28 @@ body {
 }
 .picker-chip:hover{ border-color: var(--blue); }
 .picker-chip.active{ background:var(--blue); border-color:var(--blue); color:white; }
-/* 지역("OO리") 칩은 개수가 많아 더 작고 촘촘하게 */
-#pickerRiChips.picker-chip-wrap{ gap:4px; }
-#pickerRiChips .picker-chip{ padding:4px 9px; font-size:11px; border-radius:12px; }
+/* 지역("OO동"/"OO리") 칩은 개수가 많아 더 작고 촘촘하게 */
+#pickerRegionChipWrap.picker-chip-wrap{ gap:4px; }
+#pickerRegionChipWrap .picker-chip{ padding:4px 9px; font-size:11px; border-radius:12px; }
 .picker-ri-empty{ font-size:12px; color:var(--gray-400); }
+/* 동별/번지수/리별 찾기 탭 */
+.picker-mode-tabs{ display:flex; gap:6px; margin-bottom:8px; }
+.picker-mode-tab{
+  flex:1; padding:7px 4px; border-radius: var(--radius-sm); border:1.5px solid var(--gray-200); background:white;
+  color:var(--slate); font-size:11.5px; font-weight:700; cursor:pointer; transition: all .15s; font-family:inherit;
+}
+.picker-mode-tab:hover{ border-color: var(--blue); }
+.picker-mode-tab.active{ background:var(--navy); border-color:var(--navy); color:white; }
+.picker-beonji-input{
+  width:100%; box-sizing:border-box; padding:9px 12px; border-radius: var(--radius-sm); border:1.5px solid var(--gray-200);
+  font-size:13px; font-family:inherit; margin-bottom:6px;
+}
+.picker-beonji-input:focus{ outline:none; border-color: var(--blue); }
+.picker-zone-group{ margin-bottom:14px; }
+.picker-zone-title{
+  font-size:12px; font-weight:700; color:var(--navy); background:var(--gray-100); padding:6px 10px;
+  border-radius: var(--radius-sm); margin-bottom:6px;
+}
 .picker-result-count{ font-size:12px; color:var(--gray-400); margin:2px 0 10px; }
 .picker-result-item{
   padding:10px 12px; border:1.5px solid var(--gray-200); border-radius: var(--radius-sm);
@@ -2881,7 +2899,7 @@ body {
                 <button class="picker-map-toggle-btn" id="mapToggleNaver" onclick="showNaverMap()">🗺️ 네이버지도</button>
               </span>
             </div>
-            <div class="picker-map-note" id="pickerMapNote">실제 GPS 지도가 아니라, 같은 "리"에 속한 업체를 묶어서 보여주는 약식 위치도예요. 원을 누르면 그 지역으로 필터링됩니다.</div>
+            <div class="picker-map-note" id="pickerMapNote">실제 GPS 지도가 아니라, 같은 "동"(또는 "리")에 속한 업체를 묶어서 보여주는 약식 위치도예요. 원을 누르면 그 지역으로 필터링됩니다.</div>
             <div id="pickerMapWrap"></div>
             <div id="pickerLeafletMap" style="display:none;height:230px;border-radius:var(--radius-sm);border:1px solid var(--gray-200);"></div>
             <div id="pickerNaverMap" style="display:none;height:230px;border-radius:var(--radius-sm);border:1px solid var(--gray-200);"></div>
@@ -2896,8 +2914,17 @@ body {
         <!-- 우측: 필터 + 결과 -->
         <div class="picker-col-right">
           <div class="picker-section">
-            <div class="picker-section-title"><span><span class="picker-ic">📍</span> 지역 (주소의 "OO리")</span><span class="picker-reset-link" onclick="setPickerRi(null)">전체보기</span></div>
-            <div class="picker-chip-wrap" id="pickerRiChips"></div>
+            <div class="picker-section-title"><span><span class="picker-ic">📍</span> 지역으로 찾기</span><span class="picker-reset-link" onclick="resetPickerRegion()">전체보기</span></div>
+            <div class="picker-mode-tabs" id="pickerModeTabs">
+              <button class="picker-mode-tab active" data-m="dong" onclick="setPickerMode('dong')">🏘️ 동별로 찾기</button>
+              <button class="picker-mode-tab" data-m="beonji" onclick="setPickerMode('beonji')">🔢 번지수로 찾기</button>
+              <button class="picker-mode-tab" data-m="ri" onclick="setPickerMode('ri')">🌾 "리"별로 찾기</button>
+            </div>
+            <div class="picker-chip-wrap" id="pickerRegionChipWrap"></div>
+            <div id="pickerBeonjiInputWrap" style="display:none;">
+              <input type="text" id="pickerBeonjiInput" class="picker-beonji-input" placeholder="도로명·번지 일부를 입력 (예: 36, 82번길 14)" oninput="setPickerBeonji(this.value)">
+              <div class="picker-map-note">번지수 검색 결과는 구역(산업단지/도로 구간)별로 자동으로 묶어서 보여드려요.</div>
+            </div>
           </div>
           <div class="picker-section">
             <div class="picker-section-title"><span><span class="picker-ic">🛡️</span> 단체보험</span></div>
@@ -2965,8 +2992,17 @@ body {
 
       <!-- 조건 필터: 용지 절약을 위해 조건을 좁혀 인쇄 -->
       <div class="modal-row">
-        <div class="modal-label">📍 지역 (주소의 "OO리") — 다중선택 가능</div>
-        <div class="print-ri-wrap" id="printRiChips"></div>
+        <div class="modal-label">📍 지역으로 찾기 — 다중선택 가능 (동/번지수/리 모두 여러 개 선택돼요)</div>
+        <div class="picker-mode-tabs" id="printModeTabs">
+          <button type="button" class="picker-mode-tab active" data-m="dong" onclick="setPrintRegionMode('dong')">🏘️ 동별로 찾기</button>
+          <button type="button" class="picker-mode-tab" data-m="beonji" onclick="setPrintRegionMode('beonji')">🔢 번지수로 찾기</button>
+          <button type="button" class="picker-mode-tab" data-m="ri" onclick="setPrintRegionMode('ri')">🌾 "리"별로 찾기</button>
+        </div>
+        <div class="print-ri-wrap" id="printRegionChips"></div>
+        <div id="printZoneWrap" style="display:none;">
+          <div class="picker-map-note">번지수 대신, 도로/산업단지 단위로 이미 나뉜 "구역"을 버튼으로 골라서 인쇄해요. 같은 구역끼리 모아서 순서대로 인쇄됩니다.</div>
+          <div class="print-ri-wrap" id="printZoneChips"></div>
+        </div>
       </div>
       <div class="modal-row">
         <div class="print-filter-row">
@@ -3551,7 +3587,9 @@ function doSearch() {
 }
 
 // ── 업체 선택 사이드 패널 (지역·조건으로 찾기) ───────────────────────
-let pickerFilters = { ri: null, ins1: 'all', ins2: 'all', worker: 'all' };
+// mode: 'dong'(동별로 찾기) | 'beonji'(번지수로 찾기) | 'ri'("리"별로 찾기)
+// 서울·경기 도심권(동 주소 체계)과 읍·면 지역("리" 주소 체계)이 섞여 있어 3가지 방식을 모두 지원합니다.
+let pickerFilters = { mode: 'dong', ri: null, dong: null, beonji: '', ins1: 'all', ins2: 'all', worker: 'all' };
 
 // 주소 문자열에서 "OO리" 단위를 추출 (예: "경기 김포시 대곶면 송마리 123-4" → "송마리")
 // "테크노밸리"처럼 우연히 "리"로 끝나는 단지명은 제외하기 위해 길이를 짧게 제한합니다.
@@ -3564,24 +3602,120 @@ function extractRi(addr) {
   return valid || null;
 }
 
-function openCompanyPicker() {
-  const all = getAllCompanies();
-  const riCount = {};
-  for (const c of all) {
-    const ri = extractRi(c.통합주소);
-    if (ri) riCount[ri] = (riCount[ri] || 0) + 1;
+// 주소 문자열에서 "OO동"(법정동) 단위를 추출 (예: "경기 안산시 단원구 번영1로 7, B동 1층 (성곡동)" → "성곡동")
+// "A동/가동/나동/비동"처럼 건물의 동(棟)을 가리키는 한 글자 표기는 제외합니다.
+const DONG_FALSE_POSITIVE = /^(운동|활동|이동|자동|충동|폭동|출동|아동|노동|유동|부동|변동|진동|반동|소동|감동|근동)$/;
+function extractDong(addr) {
+  if (!addr) return null;
+  const s = String(addr);
+  // 1) 주소 끝 괄호 안 첫 항목이 "OO동"이면 우선 사용 (법정동 표기 패턴: "...(성곡동,단지명)")
+  const paren = s.match(/\(([^)]+)\)\s*$/);
+  if (paren) {
+    const first = paren[1].split(',')[0].trim();
+    if (/^[가-힣]{2,4}동$/.test(first) && !DONG_FALSE_POSITIVE.test(first)) return first;
   }
-  const riList = Object.keys(riCount).sort((a, b) => riCount[b] - riCount[a]);
-  const wrap = document.getElementById('pickerRiChips');
-  wrap.innerHTML = riList.length
-    ? riList.map(ri => `<button class="picker-chip ${pickerFilters.ri===ri?'active':''}" onclick="setPickerRi('${ri}')">${ri} <span style="opacity:.7;">${riCount[ri]}</span></button>`).join('')
-    : '<span class="picker-ri-empty">주소에서 "OO리" 형태를 찾지 못했습니다. 업체 데이터의 주소 형식을 확인해주세요.</span>';
+  // 2) 괄호 패턴이 없으면 주소 전체에서 2글자 이상 어간 + "동" 형태를 탐색 (건물 동 표기는 대부분 한 글자)
+  const matches = s.match(/[가-힣]{2,3}동(?=[\s,)0-9]|$)/g);
+  if (!matches) return null;
+  const valid = matches.find(m => !DONG_FALSE_POSITIVE.test(m));
+  return valid || null;
+}
+
+function extractRegion(addr, mode) {
+  return mode === 'dong' ? extractDong(addr) : extractRi(addr);
+}
+
+// 지금 모드(mode)와 선택값에 따라 목록을 필터링합니다. 번지수 모드는 텍스트 부분일치로 검색합니다.
+function pickerRegionFilter(list) {
+  if (pickerFilters.mode === 'beonji') {
+    const q = (pickerFilters.beonji || '').trim();
+    if (q) list = list.filter(c => String(c.통합주소 || '').includes(q));
+    return list;
+  }
+  const val = pickerFilters.mode === 'dong' ? pickerFilters.dong : pickerFilters.ri;
+  if (val) list = list.filter(c => extractRegion(c.통합주소, pickerFilters.mode) === val);
+  return list;
+}
+
+function openCompanyPicker() {
+  document.querySelectorAll('#pickerModeTabs .picker-mode-tab').forEach(b => b.classList.toggle('active', b.dataset.m === pickerFilters.mode));
+  document.getElementById('pickerRegionChipWrap').style.display = pickerFilters.mode === 'beonji' ? 'none' : '';
+  document.getElementById('pickerBeonjiInputWrap').style.display = pickerFilters.mode === 'beonji' ? '' : 'none';
+  renderPickerRegionChips();
   renderPickerMap();
   renderPickerResults();
   renderPickerCourses();
   document.getElementById('pickerOverlay').classList.remove('minimized');
   document.getElementById('pickerOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+// 동별로 찾기 / 번지수로 찾기 / "리"별로 찾기 탭 전환
+function setPickerMode(mode) {
+  pickerFilters.mode = mode;
+  document.querySelectorAll('#pickerModeTabs .picker-mode-tab').forEach(b => b.classList.toggle('active', b.dataset.m === mode));
+  document.getElementById('pickerRegionChipWrap').style.display = mode === 'beonji' ? 'none' : '';
+  document.getElementById('pickerBeonjiInputWrap').style.display = mode === 'beonji' ? '' : 'none';
+  if (mode !== 'beonji') renderPickerRegionChips();
+  renderPickerMap();
+  renderPickerResults();
+  renderPickerCourses();
+}
+
+// 동/리 칩 목록을 현재 모드에 맞게 렌더링
+function renderPickerRegionChips() {
+  const mode = pickerFilters.mode;
+  if (mode === 'beonji') return;
+  const all = getAllCompanies();
+  const count = {};
+  for (const c of all) {
+    const v = extractRegion(c.통합주소, mode);
+    if (v) count[v] = (count[v] || 0) + 1;
+  }
+  const list = Object.keys(count).sort((a, b) => count[b] - count[a]);
+  const current = mode === 'dong' ? pickerFilters.dong : pickerFilters.ri;
+  const wrap = document.getElementById('pickerRegionChipWrap');
+  const label = mode === 'dong' ? '"OO동"' : '"OO리"';
+  wrap.innerHTML = list.length
+    ? list.map(v => `<button class="picker-chip ${current===v?'active':''}" onclick="setPickerRegionValue('${v}')">${v} <span style="opacity:.7;">${count[v]}</span></button>`).join('')
+    : `<span class="picker-ri-empty">주소에서 ${label} 형태를 찾지 못했습니다. 업체 데이터의 주소 형식을 확인해주세요.</span>`;
+}
+
+// 동/리 칩 선택
+function setPickerRegionValue(v) {
+  if (pickerFilters.mode === 'dong') {
+    pickerFilters.dong = (pickerFilters.dong === v) ? null : v;
+  } else {
+    pickerFilters.ri = (pickerFilters.ri === v) ? null : v;
+  }
+  renderPickerRegionChips();
+  renderPickerMap();
+  renderPickerResults();
+  renderPickerCourses();
+  const satMap = document.getElementById('pickerLeafletMap');
+  if (satMap && satMap.style.display !== 'none') loadSatelliteMap();
+  const navMap = document.getElementById('pickerNaverMap');
+  if (navMap && navMap.style.display !== 'none') loadNaverMap();
+}
+
+// 번지수 검색어 입력
+function setPickerBeonji(v) {
+  pickerFilters.beonji = v;
+  renderPickerResults();
+  renderPickerCourses();
+}
+
+// "전체보기" — 지역 선택만 초기화 (보험/근로자수 조건은 유지)
+function resetPickerRegion() {
+  pickerFilters.ri = null;
+  pickerFilters.dong = null;
+  pickerFilters.beonji = '';
+  const input = document.getElementById('pickerBeonjiInput');
+  if (input) input.value = '';
+  renderPickerRegionChips();
+  renderPickerMap();
+  renderPickerResults();
+  renderPickerCourses();
 }
 
 function closeCompanyPicker() {
@@ -3597,20 +3731,6 @@ function toggleCompanyPickerMinimize() {
   document.getElementById('pickerPullTab').textContent = minimized ? '▶' : '◀';
 }
 
-function setPickerRi(ri) {
-  pickerFilters.ri = (pickerFilters.ri === ri) ? null : ri;
-  document.querySelectorAll('#pickerRiChips .picker-chip').forEach(b => {
-    b.classList.toggle('active', b.textContent.trim().startsWith(pickerFilters.ri || '\u0000'));
-  });
-  renderPickerMap();
-  renderPickerResults();
-  renderPickerCourses();
-  const satMap = document.getElementById('pickerLeafletMap');
-  if (satMap && satMap.style.display !== 'none') loadSatelliteMap();
-  const navMap = document.getElementById('pickerNaverMap');
-  if (navMap && navMap.style.display !== 'none') loadNaverMap();
-}
-
 function setPickerFilter(field, value) {
   pickerFilters[field] = value;
   document.querySelectorAll(`.picker-chip[data-f="${field}"]`).forEach(b => {
@@ -3621,9 +3741,12 @@ function setPickerFilter(field, value) {
 }
 
 function resetPickerFilters() {
-  pickerFilters = { ri: null, ins1: 'all', ins2: 'all', worker: 'all' };
-  document.querySelectorAll('#pickerRiChips .picker-chip').forEach(b => b.classList.remove('active'));
+  const mode = pickerFilters.mode; // 모드 자체는 유지하고 선택값만 초기화
+  pickerFilters = { mode, ri: null, dong: null, beonji: '', ins1: 'all', ins2: 'all', worker: 'all' };
+  const input = document.getElementById('pickerBeonjiInput');
+  if (input) input.value = '';
   document.querySelectorAll('.picker-chip[data-f]').forEach(b => b.classList.toggle('active', b.dataset.v === 'all'));
+  renderPickerRegionChips();
   renderPickerMap();
   renderPickerResults();
   renderPickerCourses();
@@ -3641,39 +3764,46 @@ function riPseudoCoord(name) {
 }
 
 function renderPickerMap() {
-  const all = getAllCompanies();
-  const riCount = {};
-  for (const c of all) {
-    const ri = extractRi(c.통합주소);
-    if (ri) riCount[ri] = (riCount[ri] || 0) + 1;
-  }
-  const riList = Object.keys(riCount);
   const wrap = document.getElementById('pickerMapWrap');
-  if (!riList.length) {
+  if (pickerFilters.mode === 'beonji') {
+    wrap.innerHTML = '<div class="picker-ri-empty">번지수 검색은 결과를 구역별로 묶어서 보여드려요. 아래 결과 목록을 확인하세요.</div>';
+    return;
+  }
+  const mode = pickerFilters.mode;
+  const all = getAllCompanies();
+  const regionCount = {};
+  for (const c of all) {
+    const v = extractRegion(c.통합주소, mode);
+    if (v) regionCount[v] = (regionCount[v] || 0) + 1;
+  }
+  const regionList = Object.keys(regionCount);
+  if (!regionList.length) {
     wrap.innerHTML = '<div class="picker-ri-empty">표시할 지역 정보가 없습니다.</div>';
     return;
   }
-  const maxCount = Math.max(...riList.map(r => riCount[r]));
-  const nodes = riList.map(ri => {
-    const { x, y } = riPseudoCoord(ri);
-    const r = 6 + (riCount[ri] / maxCount) * 13;
-    const active = pickerFilters.ri === ri;
-    return `<g onclick="setPickerRi('${ri}')">
+  const current = mode === 'dong' ? pickerFilters.dong : pickerFilters.ri;
+  const maxCount = Math.max(...regionList.map(r => regionCount[r]));
+  const nodes = regionList.map(v => {
+    const { x, y } = riPseudoCoord(v);
+    const r = 6 + (regionCount[v] / maxCount) * 13;
+    const active = current === v;
+    return `<g onclick="setPickerRegionValue('${v}')">
       <circle cx="${x}" cy="${y}" r="${r}" fill="${active ? '#1B3A6B' : '#93C5FD'}" stroke="${active ? '#FBBF24' : '#1B3A6B'}" stroke-width="${active ? 3 : 1.2}" opacity="0.88"></circle>
-      <text x="${x}" y="${y + r + 9}" text-anchor="middle">${ri}</text>
+      <text x="${x}" y="${y + r + 9}" text-anchor="middle">${v}</text>
     </g>`;
   }).join('');
   wrap.innerHTML = `<svg class="picker-map-svg" viewBox="0 0 300 220" xmlns="http://www.w3.org/2000/svg">${nodes}</svg>`;
 }
 
-// 지역명(count) + 지오코딩에 쓸 예시 주소를 함께 모읍니다.
+// 지역명(count) + 지오코딩에 쓸 예시 주소를 함께 모읍니다. (현재 모드 기준: 동 또는 리)
 function getRiAggregates() {
+  const mode = pickerFilters.mode === 'beonji' ? 'dong' : pickerFilters.mode;
   const agg = {};
   for (const c of getAllCompanies()) {
-    const ri = extractRi(c.통합주소);
-    if (!ri) continue;
-    if (!agg[ri]) agg[ri] = { name: ri, count: 0, exampleAddr: c.통합주소 };
-    agg[ri].count++;
+    const v = extractRegion(c.통합주소, mode);
+    if (!v) continue;
+    if (!agg[v]) agg[v] = { name: v, count: 0, exampleAddr: c.통합주소 };
+    agg[v].count++;
   }
   return Object.values(agg).sort((a, b) => b.count - a.count);
 }
@@ -3698,7 +3828,7 @@ function showSchematicMap() {
   _hideAllMapEls();
   document.getElementById('mapToggleSchematic').classList.add('active');
   document.getElementById('pickerMapWrap').style.display = '';
-  document.getElementById('pickerMapNote').textContent = '실제 GPS 지도가 아니라, 같은 "리"에 속한 업체를 묶어서 보여주는 약식 위치도예요. 원을 누르면 그 지역으로 필터링됩니다.';
+  document.getElementById('pickerMapNote').textContent = '실제 GPS 지도가 아니라, 같은 "동"(또는 "리")에 속한 업체를 묶어서 보여주는 약식 위치도예요. 원을 누르면 그 지역으로 필터링됩니다.';
 }
 
 function showSatelliteMap() {
@@ -3760,7 +3890,7 @@ async function loadNaverMap() {
 
   const bounds = new naver.maps.LatLngBounds();
   const plotNaver = (agg, coord) => {
-    const active = pickerFilters.ri === agg.name;
+    const active = (pickerFilters.mode === 'dong' ? pickerFilters.dong : pickerFilters.ri) === agg.name;
     const pos = new naver.maps.LatLng(coord.lat, coord.lon);
     const marker = new naver.maps.Marker({
       position: pos, map: _naverMap,
@@ -3770,7 +3900,7 @@ async function loadNaverMap() {
         anchor: new naver.maps.Point(10, 10)
       }
     });
-    naver.maps.Event.addListener(marker, 'click', () => setPickerRi(agg.name));
+    naver.maps.Event.addListener(marker, 'click', () => setPickerRegionValue(agg.name));
     _naverMarkers.push(marker);
     bounds.extend(pos);
     _naverMap.fitBounds(bounds);
@@ -3831,7 +3961,7 @@ async function loadSatelliteMap() {
 
   const bounds = [];
   const plot = (agg, coord) => {
-    const active = pickerFilters.ri === agg.name;
+    const active = (pickerFilters.mode === 'dong' ? pickerFilters.dong : pickerFilters.ri) === agg.name;
     const marker = L.circleMarker([coord.lat, coord.lon], {
       radius: 7 + Math.min(agg.count, 20) * 0.8,
       color: active ? '#FBBF24' : '#1B3A6B',
@@ -3840,7 +3970,7 @@ async function loadSatelliteMap() {
       fillOpacity: 0.75
     }).addTo(map);
     marker.bindTooltip(`${agg.name} (${agg.count}개)`, { permanent: false, direction: 'top' });
-    marker.on('click', () => setPickerRi(agg.name));
+    marker.on('click', () => setPickerRegionValue(agg.name));
     _leafletMarkers.push(marker);
     bounds.push([coord.lat, coord.lon]);
     if (bounds.length) map.fitBounds(bounds, { maxZoom: 12, padding: [20, 20] });
@@ -3889,7 +4019,7 @@ async function loadSatelliteMap() {
 // 지금 적용된 필터 결과를 기준으로 방문하기 좋은 순서 3가지를 제안합니다.
 function renderPickerCourses() {
   let list = getAllCompanies();
-  if (pickerFilters.ri) list = list.filter(c => extractRi(c.통합주소) === pickerFilters.ri);
+  list = pickerRegionFilter(list);
   if (pickerFilters.ins1 !== 'all') list = list.filter(c => (c.단체보험가입여부 === 'Y') === (pickerFilters.ins1 === 'Y'));
   if (pickerFilters.ins2 !== 'all') list = list.filter(c => (c.법인명의가입여부 === 'Y') === (pickerFilters.ins2 === 'Y'));
   if (pickerFilters.worker !== 'all') {
@@ -3899,10 +4029,10 @@ function renderPickerCourses() {
   const wrap = document.getElementById('pickerCourses');
   if (!list.length) { wrap.innerHTML = '<div class="picker-ri-empty">추천할 업체가 없습니다. 필터를 조정해보세요.</div>'; return; }
 
-  // 코스 A — 같은 "리"끼리 묶어서 이동 동선을 줄이는 순서
-  const byRi = {};
-  for (const c of list) { const ri = extractRi(c.통합주소) || '기타'; (byRi[ri] = byRi[ri] || []).push(c); }
-  const courseA = Object.keys(byRi).sort((a, b) => byRi[b].length - byRi[a].length).flatMap(ri => byRi[ri]).slice(0, 8);
+  // 코스 A — 같은 지역(구역)끼리 묶어서 이동 동선을 줄이는 순서
+  const byZoneCourse = {};
+  for (const c of list) { const z = c.구역 || '기타'; (byZoneCourse[z] = byZoneCourse[z] || []).push(c); }
+  const courseA = Object.keys(byZoneCourse).sort((a, b) => byZoneCourse[b].length - byZoneCourse[a].length).flatMap(z => byZoneCourse[z]).slice(0, 8);
 
   // 코스 B — 근로자수(규모) 큰 곳부터
   const workerNum = c => Number(String(c.최신근로자수 || 0).replace(/[^0-9]/g, '')) || 0;
@@ -3920,14 +4050,14 @@ function renderPickerCourses() {
     </div>`;
 
   wrap.innerHTML =
-    courseHtml('코스 A · 같은 지역끼리 묶어서', '🧭', courseA, c => extractRi(c.통합주소) || '-') +
+    courseHtml('코스 A · 같은 지역끼리 묶어서', '🧭', courseA, c => c.구역 || '-') +
     courseHtml('코스 B · 규모 큰 곳부터', '📈', courseB, c => c.최신근로자수 ? c.최신근로자수 + '명' : '-') +
     courseHtml('코스 C · 미가입 업체 먼저(영업기회)', '🎯', courseC, c => c.단체보험가입여부 === 'Y' ? '가입' : '미가입');
 }
 
 function renderPickerResults() {
   let list = getAllCompanies();
-  if (pickerFilters.ri) list = list.filter(c => extractRi(c.통합주소) === pickerFilters.ri);
+  list = pickerRegionFilter(list);
   if (pickerFilters.ins1 !== 'all') list = list.filter(c => (c.단체보험가입여부 === 'Y') === (pickerFilters.ins1 === 'Y'));
   if (pickerFilters.ins2 !== 'all') list = list.filter(c => (c.법인명의가입여부 === 'Y') === (pickerFilters.ins2 === 'Y'));
   if (pickerFilters.worker !== 'all') {
@@ -3937,16 +4067,35 @@ function renderPickerResults() {
   const countEl = document.getElementById('pickerResultCount');
   const resultsEl = document.getElementById('pickerResults');
   countEl.textContent = list.length.toLocaleString() + '개 업체';
+
   if (!list.length) {
-    resultsEl.innerHTML = '<div class="picker-empty-state">조건에 맞는 업체가 없습니다.<br>필터를 조정해보세요.</div>';
+    resultsEl.innerHTML = (pickerFilters.mode === 'beonji' && !(pickerFilters.beonji || '').trim())
+      ? '<div class="picker-empty-state">도로명이나 번지수를 입력해보세요.<br>예: 36, 82번길 14</div>'
+      : '<div class="picker-empty-state">조건에 맞는 업체가 없습니다.<br>필터를 조정해보세요.</div>';
     return;
   }
-  const shown = list.slice(0, 200);
-  resultsEl.innerHTML = shown.map(c => `
+
+  const itemHtml = c => `
     <div class="picker-result-item" onclick="selectCompanyFromPicker('${c.기업명.replace(/'/g,"\\'")}')">
       <div class="picker-result-name">${c.기업명}</div>
       <div class="picker-result-meta">${c.통합주소 || '-'}<br>${c.본사전화번호 || '-'} · 근로자 ${c.최신근로자수 ? c.최신근로자수+'명' : '-'} · 단체보험 ${c.단체보험가입여부||'-'} · 법인명의 ${c.법인명의가입여부||'-'}</div>
-    </div>`).join('') + (list.length > 200 ? `<div class="picker-ri-empty" style="margin-top:6px;">그 외 ${(list.length-200).toLocaleString()}개 더 있음 · 지역/조건을 좁혀보세요</div>` : '');
+    </div>`;
+
+  // 번지수로 찾기: 검색어가 있으면 결과를 "구역"별로 자동 그룹핑해서 보여줍니다.
+  if (pickerFilters.mode === 'beonji' && (pickerFilters.beonji || '').trim()) {
+    const byZone = {};
+    for (const c of list) { const z = c.구역 || '기타'; (byZone[z] = byZone[z] || []).push(c); }
+    const zones = Object.keys(byZone).sort((a, b) => byZone[b].length - byZone[a].length);
+    resultsEl.innerHTML = zones.map(z => `
+      <div class="picker-zone-group">
+        <div class="picker-zone-title">📍 ${z} <span style="opacity:.65;">(${byZone[z].length}곳)</span></div>
+        ${byZone[z].slice(0, 50).map(itemHtml).join('')}
+      </div>`).join('');
+    return;
+  }
+
+  const shown = list.slice(0, 200);
+  resultsEl.innerHTML = shown.map(itemHtml).join('') + (list.length > 200 ? `<div class="picker-ri-empty" style="margin-top:6px;">그 외 ${(list.length-200).toLocaleString()}개 더 있음 · 지역/조건을 좁혀보세요</div>` : '');
 }
 
 function selectCompanyFromPicker(name) {
@@ -6799,8 +6948,11 @@ function closePP() {
 let _printMode = 'list';
 let _lastPrintCompanies = [];
 
-// 인쇄 팝업 조건 필터 상태 — 지역(리)는 다중선택(Set), 나머지는 단일값
-let _printFilters = { ri: new Set(), ins1: 'all', ins2: 'all', worker: 'all' };
+// 인쇄 팝업 조건 필터 상태 — 지역은 mode(동/번지수/리)에 따라 다르게 동작
+// 동·리·번지수(구역) 모두 다중선택(Set) 버튼 방식입니다.
+// ⚠️ 번지수(예: "36")는 도로마다 번호가 새로 시작돼서 숫자만으론 지리적으로 무의미하므로,
+//    "번지수로 찾기" 탭은 실제로는 엑셀에 이미 있는 "구역"(도로/산업단지 단위) 값을 버튼화해서 보여줍니다.
+let _printFilters = { mode: 'dong', ri: new Set(), dong: new Set(), zone: new Set(), ins1: 'all', ins2: 'all', worker: 'all' };
 
 function openPrintPanel() {
   const srcs = builtinDeleted ? [...extraSources] : [getBuiltinMeta(), ...extraSources];
@@ -6815,22 +6967,44 @@ function openPrintPanel() {
       ✍️ 직접입력 업체 <span style="color:var(--gray-400);">(${manualCompanies.length.toLocaleString()}개)</span>
     </label>` : '');
   setPrintMode('list');
-  // 팝업을 열 때마다 필터를 새로 초기화 (앞 세션 값이 남지 않도록)
-  _printFilters = { ri: new Set(), ins1: 'all', ins2: 'all', worker: 'all' };
+  // 팝업을 열 때마다 필터를 새로 초기화 (앞 세션 값이 남지 않도록, 모드는 마지막 선택을 유지)
+  const keepMode = _printFilters.mode;
+  _printFilters = { mode: keepMode, ri: new Set(), dong: new Set(), zone: new Set(), ins1: 'all', ins2: 'all', worker: 'all' };
   document.querySelectorAll('#printChooseModal .print-chip[data-pf]').forEach(b => {
     b.classList.toggle('active', b.dataset.pv === 'all');
   });
-  renderPrintRiChips();
+  document.querySelectorAll('#printModeTabs .picker-mode-tab').forEach(b => b.classList.toggle('active', b.dataset.m === keepMode));
+  document.getElementById('printRegionChips').style.display = keepMode === 'beonji' ? 'none' : '';
+  document.getElementById('printZoneWrap').style.display = keepMode === 'beonji' ? '' : 'none';
+  renderPrintRegionChips();
+  renderPrintZoneChips();
   updatePrintFilterCount();
   document.getElementById('printChooseModal').classList.add('open');
 }
 
-// 데이터 소스 체크박스 변경시 → 지역(리) 목록과 결과 개수를 다시 계산
+// 동별로 찾기 / 번지수로 찾기(=구역 버튼) / "리"별로 찾기 탭 전환 (인쇄 모달 전용)
+function setPrintRegionMode(mode) {
+  _printFilters.mode = mode;
+  document.querySelectorAll('#printModeTabs .picker-mode-tab').forEach(b => b.classList.toggle('active', b.dataset.m === mode));
+  document.getElementById('printRegionChips').style.display = mode === 'beonji' ? 'none' : '';
+  document.getElementById('printZoneWrap').style.display = mode === 'beonji' ? '' : 'none';
+  if (mode === 'beonji') renderPrintZoneChips();
+  else renderPrintRegionChips();
+  updatePrintFilterCount();
+}
+
+// 데이터 소스 체크박스 변경시 → 지역 목록과 결과 개수를 다시 계산
 function onPrintSrcChange() {
-  // 소스가 바뀌면 이전에 선택했던 리 중 존재하지 않는 것은 자동 해제
-  const validRis = new Set(getPrintScopeCompanies().map(c => extractRi(c.통합주소)).filter(Boolean));
-  _printFilters.ri = new Set([..._printFilters.ri].filter(r => validRis.has(r)));
-  renderPrintRiChips();
+  // 소스가 바뀌면 이전에 선택했던 동/리/구역 중 존재하지 않는 것은 자동 해제
+  const scope = getPrintScopeCompanies();
+  const validDong = new Set(scope.map(c => extractDong(c.통합주소)).filter(Boolean));
+  const validRi = new Set(scope.map(c => extractRi(c.통합주소)).filter(Boolean));
+  const validZone = new Set(scope.map(c => c.구역).filter(Boolean));
+  _printFilters.dong = new Set([..._printFilters.dong].filter(v => validDong.has(v)));
+  _printFilters.ri = new Set([..._printFilters.ri].filter(v => validRi.has(v)));
+  _printFilters.zone = new Set([..._printFilters.zone].filter(v => validZone.has(v)));
+  renderPrintRegionChips();
+  renderPrintZoneChips();
   updatePrintFilterCount();
 }
 
@@ -6847,41 +7021,85 @@ function getPrintScopeCompanies() {
 // 인쇄 팝업 필터를 적용한 결과 배열
 function applyPrintFilters(companies) {
   let list = companies;
-  if (_printFilters.ri.size > 0) list = list.filter(c => _printFilters.ri.has(extractRi(c.통합주소)));
+  if (_printFilters.mode === 'beonji') {
+    if (_printFilters.zone.size > 0) list = list.filter(c => _printFilters.zone.has(c.구역));
+  } else if (_printFilters.mode === 'dong') {
+    if (_printFilters.dong.size > 0) list = list.filter(c => _printFilters.dong.has(extractDong(c.통합주소)));
+  } else {
+    if (_printFilters.ri.size > 0) list = list.filter(c => _printFilters.ri.has(extractRi(c.통합주소)));
+  }
   if (_printFilters.ins1 !== 'all') list = list.filter(c => (c.단체보험가입여부 === 'Y') === (_printFilters.ins1 === 'Y'));
   if (_printFilters.ins2 !== 'all') list = list.filter(c => (c.법인명의가입여부 === 'Y') === (_printFilters.ins2 === 'Y'));
   if (_printFilters.worker !== 'all') {
     const min = Number(_printFilters.worker);
     list = list.filter(c => Number(String(c.최신근로자수 || '').replace(/[^0-9]/g, '')) >= min);
   }
+  // 구역(번지수 탭)으로 여러 곳을 골랐을 때는 같은 구역끼리 모아서 인쇄되도록 정렬
+  if (_printFilters.mode === 'beonji' && _printFilters.zone.size > 0) {
+    const order = [..._printFilters.zone];
+    list = [...list].sort((a, b) => order.indexOf(a.구역) - order.indexOf(b.구역));
+  }
   return list;
 }
 
-// 지역(리) 칩을 데이터 소스 선택에 맞춰 렌더링
-function renderPrintRiChips() {
-  const wrap = document.getElementById('printRiChips');
+// 지역 칩(동 또는 리)을 데이터 소스·모드 선택에 맞춰 렌더링
+function renderPrintRegionChips() {
+  const wrap = document.getElementById('printRegionChips');
   if (!wrap) return;
+  const mode = _printFilters.mode;
+  if (mode === 'beonji') return;
   const all = getPrintScopeCompanies();
-  const riCount = {};
+  const count = {};
   for (const c of all) {
-    const ri = extractRi(c.통합주소);
-    if (ri) riCount[ri] = (riCount[ri] || 0) + 1;
+    const v = extractRegion(c.통합주소, mode);
+    if (v) count[v] = (count[v] || 0) + 1;
   }
-  const riList = Object.keys(riCount).sort((a, b) => riCount[b] - riCount[a]);
-  if (!riList.length) {
-    wrap.innerHTML = '<span class="print-ri-empty">선택한 데이터 소스에서 "OO리" 주소를 찾지 못했어요. (전체 인쇄됩니다)</span>';
+  const list = Object.keys(count).sort((a, b) => count[b] - count[a]);
+  const activeSet = mode === 'dong' ? _printFilters.dong : _printFilters.ri;
+  const label = mode === 'dong' ? '"OO동"' : '"OO리"';
+  if (!list.length) {
+    wrap.innerHTML = `<span class="print-ri-empty">선택한 데이터 소스에서 ${label} 주소를 찾지 못했어요. (전체 인쇄됩니다)</span>`;
     return;
   }
-  wrap.innerHTML = riList.map(ri => {
-    const active = _printFilters.ri.has(ri);
-    return `<button type="button" class="print-chip ${active ? 'active' : ''}" onclick="togglePrintRi('${ri.replace(/'/g,"\\'")}')">${ri}<span class="pc-cnt">${riCount[ri]}</span></button>`;
+  wrap.innerHTML = list.map(v => {
+    const active = activeSet.has(v);
+    return `<button type="button" class="print-chip ${active ? 'active' : ''}" onclick="togglePrintRegion('${v.replace(/'/g,"\\'")}')">${v}<span class="pc-cnt">${count[v]}</span></button>`;
   }).join('');
 }
 
-function togglePrintRi(ri) {
-  if (_printFilters.ri.has(ri)) _printFilters.ri.delete(ri);
-  else _printFilters.ri.add(ri);
-  renderPrintRiChips();
+function togglePrintRegion(v) {
+  const activeSet = _printFilters.mode === 'dong' ? _printFilters.dong : _printFilters.ri;
+  if (activeSet.has(v)) activeSet.delete(v);
+  else activeSet.add(v);
+  renderPrintRegionChips();
+  updatePrintFilterCount();
+}
+
+// "번지수로 찾기" 탭 = 구역(도로/산업단지 단위) 버튼 목록 렌더링
+function renderPrintZoneChips() {
+  const wrap = document.getElementById('printZoneChips');
+  if (!wrap) return;
+  const all = getPrintScopeCompanies();
+  const count = {};
+  for (const c of all) {
+    const z = c.구역;
+    if (z) count[z] = (count[z] || 0) + 1;
+  }
+  const list = Object.keys(count).sort((a, b) => count[b] - count[a]);
+  if (!list.length) {
+    wrap.innerHTML = '<span class="print-ri-empty">선택한 데이터 소스에서 "구역" 정보를 찾지 못했어요. (전체 인쇄됩니다)</span>';
+    return;
+  }
+  wrap.innerHTML = list.map(z => {
+    const active = _printFilters.zone.has(z);
+    return `<button type="button" class="print-chip ${active ? 'active' : ''}" onclick="togglePrintZone('${z.replace(/'/g,"\\'")}')">${z}<span class="pc-cnt">${count[z]}</span></button>`;
+  }).join('');
+}
+
+function togglePrintZone(z) {
+  if (_printFilters.zone.has(z)) _printFilters.zone.delete(z);
+  else _printFilters.zone.add(z);
+  renderPrintZoneChips();
   updatePrintFilterCount();
 }
 
@@ -6894,11 +7112,13 @@ function setPrintFilter(field, value) {
 }
 
 function resetPrintFilters() {
-  _printFilters = { ri: new Set(), ins1: 'all', ins2: 'all', worker: 'all' };
+  const mode = _printFilters.mode;
+  _printFilters = { mode, ri: new Set(), dong: new Set(), zone: new Set(), ins1: 'all', ins2: 'all', worker: 'all' };
   document.querySelectorAll('#printChooseModal .print-chip[data-pf]').forEach(b => {
     b.classList.toggle('active', b.dataset.pv === 'all');
   });
-  renderPrintRiChips();
+  renderPrintRegionChips();
+  renderPrintZoneChips();
   updatePrintFilterCount();
 }
 
@@ -6979,7 +7199,9 @@ function generatePrintView() {
 
   // 인쇄물 상단에 어떤 조건이 적용됐는지 요약 문구 만들기
   const filterParts = [];
-  if (_printFilters.ri.size > 0) filterParts.push('지역: ' + [..._printFilters.ri].join('·'));
+  if (_printFilters.mode === 'beonji' && _printFilters.zone.size > 0) filterParts.push('구역: ' + [..._printFilters.zone].join('·'));
+  else if (_printFilters.mode === 'dong' && _printFilters.dong.size > 0) filterParts.push('동: ' + [..._printFilters.dong].join('·'));
+  else if (_printFilters.mode === 'ri' && _printFilters.ri.size > 0) filterParts.push('지역: ' + [..._printFilters.ri].join('·'));
   if (_printFilters.ins1 !== 'all') filterParts.push('단체보험 ' + (_printFilters.ins1 === 'Y' ? '가입' : '미가입'));
   if (_printFilters.ins2 !== 'all') filterParts.push('법인명의 ' + (_printFilters.ins2 === 'Y' ? '가입' : '미가입'));
   if (_printFilters.worker !== 'all') filterParts.push('근로자 ' + _printFilters.worker + '인 이상');
